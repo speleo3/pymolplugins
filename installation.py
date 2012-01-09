@@ -11,7 +11,7 @@ import os
 # supported file types for installation. Do not support pyc and pyo binaries,
 # we want text files that can be parsed for metadata.
 zip_extensions = ['zip', 'tar.gz']
-supported_extension = ['py'] + zip_extensions
+supported_extensions = ['py'] + zip_extensions
 
 def get_default_user_plugin_path():
     '''
@@ -41,38 +41,37 @@ def installPluginFromFile(ofile):
 
     Takes python (.py) files and archives which contain a python module.
     '''
-    from . import get_startup_path
+    import shutil
+    from . import startup, PluginInfo, showinfo, askyesno
+    from . import get_startup_path, set_startup_path, pref_get
     from .legacysupport import get_tk_root
 
     plugdirs = get_startup_path()
     if len(plugdirs) == 1:
-        installPluginFromFile2(ofile, plugdirs[0])
-        return
+        plugdir = plugdirs[0]
+    else:
+        dialog_selection = []
+        def plugdir_callback(result):
+            if result == 'OK':
+                dialog_selection[:] = dialog.getcurselection()
+            dialog.destroy()
 
-    def plugdir_callback(result):
-        if result == 'OK':
-            s = dialog.getcurselection()
-            if len(s) == 0:
-                return False
-            installPluginFromFile2(ofile, s[0])
-        dialog.destroy()
+        import Pmw
+        dialog = Pmw.SelectionDialog(get_tk_root(), title='Select plugin directory',
+                buttons = ('OK', 'Cancel'), defaultbutton='OK',
+                scrolledlist_labelpos='n',
+                label_text='In which directory should the plugin be installed?',
+                scrolledlist_items=plugdirs,
+                command=plugdir_callback)
+        dialog.component('scrolledlist').selection_set(0)
 
-    import Pmw
-    dialog = Pmw.SelectionDialog(get_tk_root(), title='Select plugin directory',
-            buttons = ('OK', 'Cancel'), defaultbutton='OK',
-            scrolledlist_labelpos='n',
-            label_text='In which directory should the plugin be installed?',
-            scrolledlist_items=plugdirs,
-            command=plugdir_callback)
-    dialog.component('scrolledlist').selection_set(0)
+        # wait for dialog to be closed
+        dialog.wait_window()
 
-def installPluginFromFile2(ofile, plugdir):
-    '''
-    Continuation from installPluginFromFile
-    '''
-    import shutil
-    from . import startup, PluginInfo, showinfo, askyesno
-    from . import get_startup_path, set_startup_path
+        if len(dialog_selection) == 0:
+            return
+
+        plugdir = dialog_selection[0]
 
     if not is_writable(plugdir):
         user_plugdir = get_default_user_plugin_path()
@@ -91,7 +90,6 @@ def installPluginFromFile2(ofile, plugdir):
 
         plugdir = user_plugdir
 
-    plugdirs = get_startup_path()
     if plugdir not in plugdirs:
         set_startup_path([plugdir] + plugdirs)
 
@@ -104,7 +102,7 @@ def installPluginFromFile2(ofile, plugdir):
     else:
         ext = ext.rsplit('.', 1)[-1].lower()
 
-    if ext not in supported_extension:
+    if ext not in supported_extensions:
         showinfo('Error', 'Not a valid plugin file, installation cancelled!')
         return
 
@@ -188,8 +186,7 @@ def installPluginFromFile2(ofile, plugdir):
             raise UserWarning('this should never happen')
 
     except:
-        from . import verbose
-        if verbose:
+        if pref_get('verbose', False):
             import traceback
             traceback.print_exc()
         showinfo('Error', 'unable to install plugin "%s"' % name)
