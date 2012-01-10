@@ -10,7 +10,7 @@ import os
 import sys
 import pymol
 from pymol import cmd
-from .legacysupport import startup, get_pmgapp
+from .legacysupport import startup, get_pmgapp, get_tk_root
 
 # variables
 

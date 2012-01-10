@@ -255,6 +255,22 @@ class PluginManager(Pmw.MegaToplevel):
                 text='PyMOL restart required in order to find plugins in modified plugin search path')
         l_path.pack(**default_top)
 
+        w = Pmw.Group(page, tag_text='Preferences (Read-Only)')
+        w.pack(**default_top)
+        w = w.interior()
+
+        from . import preferences
+        for row, key in enumerate(preferences):
+            value = str(preferences[key])
+            if len(value) > 100:
+                value = value[:97] + '...'
+            Tkinter.Label(w, text=key).grid(row=row, column=0, sticky='nw', padx=3, pady=2)
+            e = Tkinter.Entry(w)
+            e.insert(0, value)
+            e.config(state='readonly')
+            e.grid(row=row, column=1, sticky='nwe', padx=5, pady=2)
+        w.columnconfigure(1, weight=1)
+
 class InstalledPluginsWidget(Pmw.ScrolledFrame):
     '''
     Scrolled widget that shows all installed plugins.

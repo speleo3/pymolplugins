@@ -1,5 +1,8 @@
 PyMOL Plugins Engine
 
+See "templates/hello.py" for the recommended structure of a PyMOL plugin
+module and the use of the provided API functions.
+
 http://pymolwiki.org/index.php/PluginArchitecture
 http://pymol.org/fellowship
 
