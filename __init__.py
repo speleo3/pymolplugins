@@ -166,6 +166,8 @@ class PluginInfo(object):
         metadata = dict()
         f = open(self.filename)
         for line in f:
+            if line.strip() == '':
+                continue
             if not line.startswith('#'):
                 break
             if ':' in line:
