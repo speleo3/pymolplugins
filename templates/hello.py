@@ -1,6 +1,7 @@
 # Author: Firstname Lastname
 # License: BSD-2-Clause
 # Version: 0.9
+# Citation-Required: No
 '''
 Hello World PyMOL Plugin
 

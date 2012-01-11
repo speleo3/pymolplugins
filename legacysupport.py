@@ -68,7 +68,7 @@ def initializePlugins(self):
     # Load plugin manager independent of other plugins
     def plugin_manager():
         from . import managergui
-        managergui.create_dialog()
+        managergui.manager_dialog()
     addmenuitem('-', None, 'PluginAction')
     addmenuitem('Plugin Manager', plugin_manager, 'PluginAction')
 

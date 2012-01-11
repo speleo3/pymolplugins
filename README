@@ -1,9 +1,40 @@
 PyMOL Plugins Engine
 
-See "templates/hello.py" for the recommended structure of a PyMOL plugin
-module and the use of the provided API functions.
+THIS IS WORK IN PROGRESS, PLEASE ONLY INSTALL FOR TESTING.
+
+Install
+
+    "pymolplugins" is a python module, so place it somewhere inside your
+    python path. If you download the ZIP from github, you need to rename
+    "speleo3-pymolplguins-xxxxxxx" to "pymolplugins".
+
+    The module needs to be loaded before the PyMOL external GUI launches. So
+    put in your ~/.pymolrc.py:
+
+    import pymolplugins
+
+Uninstall
+
+    Remove ~/.pymolrc_plugins.py
+
+    Remove the "import pymolplugins" line from your ~/.pymolrc.py
+
+Plugin API
+
+    See "templates/hello.py" for the recommended structure of a PyMOL plugin
+    module and the use of the provided API functions.
+
+Knows Issues
+
+    * ZIP file installation broken on Windows
+    * Version not yet evaluated on reinstallation
+    * Repository support in very provisional state
+
+Acknowledgements
+
+    This work is funded by the Warren L. DeLano Memorial PyMOL Open-Source
+    Fellowship.    http://pymol.org/fellowship
 
 http://pymolwiki.org/index.php/PluginArchitecture
-http://pymol.org/fellowship
 
 # vi:expandtab:smarttab:sw=4

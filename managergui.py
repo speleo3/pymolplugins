@@ -13,12 +13,58 @@ default_pad = {'padx': 5, 'pady': 5}
 default_top = {'fill': 'x', 'anchor': 'n', 'side': 'top'}
 default_top.update(default_pad)
 
-def create_dialog():
+def manager_dialog():
     '''
     Create the Plugin Manager dialog (with Pmw)
     '''
     from .legacysupport import get_tk_root
     dialog = PluginManager(get_tk_root())
+
+def plugin_info_dialog(parent, info):
+    '''
+    Shows a popup with plugin info (name, metadata, doc-string, ...)
+    '''
+    dialog = Pmw.MegaToplevel(parent,
+            title = 'Info about plugin ' + info.name)
+    grid = dialog.interior()
+
+    def add_line(label, text):
+        row = grid.grid_size()[1]
+        Tkinter.Label(grid, text=label + ':').grid(row=row, column=0, sticky='nw', padx=5, pady=2)
+        e = Tkinter.Entry(grid)
+        e.insert(0, str(text))
+        e.config(state='readonly')
+        e.grid(row=row, column=1, sticky='nwe', padx=5, pady=2)
+
+    if info.get_citation_required():
+        Tkinter.Label(grid, text='This Plugin requires citation! See below for details',
+                bg='#ff3333', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+
+    add_line('Name', info.name)
+    add_line('Python Module Name', info.mod_name)
+    add_line('Filename', info.filename)
+    grid.columnconfigure(1, weight=1)
+
+    metadata = info.get_metadata()
+    for label, value in metadata.iteritems():
+        add_line(label, value)
+
+    if not info.loaded:
+        Tkinter.Label(grid, text='more information might be available after plugin is loaded',
+                bg='#ffff99', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+        return
+
+    add_line('commands', ', '.join(info.commands))
+
+    if info.module.__doc__ is not None:
+        st = Pmw.ScrolledText(grid, text_wrap='none', text_padx = 4, text_pady = 4)
+        st.appendtext(info.module.__doc__.strip())
+        st.configure(text_state='disabled')
+        st.grid(columnspan=2, sticky='nesw', padx=5, pady=2)
+        grid.rowconfigure(grid.grid_size()[1] - 1, weight=1)
+    else:
+        Tkinter.Label(grid, text='no documentation available',
+                bg='#ff9999', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
 
 class PluginManager(Pmw.MegaToplevel):
     '''
@@ -314,7 +360,7 @@ class InstalledPluginsWidget(Pmw.ScrolledFrame):
             child.pack_forget()
 
         for child in self.children():
-            if text not in child.info.name.lower():
+            if text.lower() not in child.info.name.lower():
                 continue
             if self.v_fstartup.get() and not child.info.autoload:
                 continue
@@ -411,46 +457,7 @@ class PluginWidget(Tkinter.Frame):
         self.super.pack(self, fill='x', anchor=Tkinter.N)
 
     def plugin_info(self):
-        '''
-        Shows a popup with plugin info (name, metadata, doc-string, ...)
-        '''
-        dialog = Pmw.MegaToplevel(self,
-                title = 'Info about plugin ' + self.info.name)
-        grid = dialog.interior()
-
-        def add_line(label, text):
-            row = grid.grid_size()[1]
-            Tkinter.Label(grid, text=label + ':').grid(row=row, column=0, sticky='nw', padx=5, pady=2)
-            e = Tkinter.Entry(grid)
-            e.insert(0, str(text))
-            e.config(state='readonly')
-            e.grid(row=row, column=1, sticky='nwe', padx=5, pady=2)
-
-        add_line('Name', self.info.name)
-        add_line('Python Module Name', self.info.mod_name)
-        add_line('Filename', self.info.filename)
-        grid.columnconfigure(1, weight=1)
-
-        metadata = self.info.get_metadata()
-        for label, value in metadata.iteritems():
-            add_line(label, value)
-
-        if not self.info.loaded:
-            Tkinter.Label(grid, text='more information might be available after plugin is loaded',
-                    bg='#ffff99', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
-            return
-
-        add_line('commands', ', '.join(self.info.commands))
-
-        if self.info.module.__doc__ is not None:
-            st = Pmw.ScrolledText(grid, text_wrap='none', text_padx = 4, text_pady = 4)
-            st.appendtext(self.info.module.__doc__.strip())
-            st.configure(text_state='disabled')
-            st.grid(columnspan=2, sticky='nesw', padx=5, pady=2)
-            grid.rowconfigure(grid.grid_size()[1] - 1, weight=1)
-        else:
-            Tkinter.Label(grid, text='no documentation available',
-                    bg='#ff9999', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+        plugin_info_dialog(self, self.info)
 
     def plugin_load(self):
         self.info.load()

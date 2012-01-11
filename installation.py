@@ -200,4 +200,10 @@ def installPluginFromFile(ofile):
     else:
         showinfo('Error', 'Plugin "%s" has been installed but initialization failed.' % name)
 
+    if info.get_citation_required():
+        if askyesno('Citation Required', 'This plugin requires citation. Show information now?'
+                '\n\n(You can always get this information from the Plugin Manager, click the "Info" button there)'):
+            from .managergui import plugin_info_dialog
+            plugin_info_dialog(get_tk_root(), info)
+
 # vi:expandtab:smarttab:sw=4
