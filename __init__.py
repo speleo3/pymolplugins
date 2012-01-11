@@ -157,7 +157,7 @@ class PluginInfo(object):
 
     @property
     def loaded(self):
-        return self.mod_name in sys.modules
+        return self.loadtime is not None
 
     def get_metadata(self):
         '''
