@@ -148,7 +148,7 @@ class PluginManager(Pmw.MegaToplevel):
             tmpdir = tempfile.mkdtemp()
             filename = fetchscript(url, tmpdir, False)
             if filename:
-                installPluginFromFile(filename)
+                installPluginFromFile(filename, self.interior())
             shutil.rmtree(tmpdir)
             self.f_installed.reload()
 
@@ -204,7 +204,7 @@ class PluginManager(Pmw.MegaToplevel):
                 name = sels[0]
                 repo_tmp.r.copy(name, tmpdir)
                 filename = os.path.join(tmpdir, name)
-                installPluginFromFile(filename)
+                installPluginFromFile(filename, self.interior())
             finally:
                 print 'cleaning up...'
                 shutil.rmtree(tmpdir)
@@ -225,7 +225,7 @@ class PluginManager(Pmw.MegaToplevel):
 
         def dummy_command():
             from . import showinfo
-            showinfo('Dummy', 'Not implemented')
+            showinfo('Dummy', 'Not implemented', parent=self.interior())
         repo_bb_left.add('Add ...', command=dummy_command)
         repo_bb_left.add('Remove', command=dummy_command)
         repo_bb_right.add('Install', command=selecmd_right)
@@ -255,7 +255,7 @@ class PluginManager(Pmw.MegaToplevel):
             import os
             import tkFileDialog
             from .installation import get_default_user_plugin_path as userpath
-            d = tkFileDialog.askdirectory(initialdir=userpath())
+            d = tkFileDialog.askdirectory(initialdir=userpath(), parent=self.interior())
             if not len(d):
                 return
             if not os.path.exists(d):
@@ -449,7 +449,7 @@ class PluginWidget(Tkinter.Frame):
         self.info.autoload = self.v_startup.get()
         if self.info.autoload and not self.info.loaded:
             import tkMessageBox
-            if tkMessageBox.askyesno('Confirm', 'Load plugin now?'):
+            if tkMessageBox.askyesno('Confirm', 'Load plugin now?', parent=self):
                 self.plugin_load()
         PluginManager.b_save.configure(background='red')
 
@@ -464,7 +464,7 @@ class PluginWidget(Tkinter.Frame):
         self.status_update()
 
     def plugin_remove(self):
-        if self.info.uninstall():
+        if self.info.uninstall(self):
             self.pack_forget()
             self.destroy()
 

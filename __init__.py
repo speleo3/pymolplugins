@@ -109,18 +109,22 @@ DESCRIPTION
 
 # helper functions and classes
 
-def showinfo(title, message):
+def showinfo(title, message, parent=None, **kwargs):
     '''
     Show message on console and as graphical message box.
     '''
+    if parent is None:
+        parent = get_tk_root().focus_get()
     import tkMessageBox
     print ' ' + title + ': ' + message
-    tkMessageBox.showinfo(title, message)
+    tkMessageBox.showinfo(title, message, parent=parent, **kwargs)
 
-def askyesno(title, message):
+def askyesno(title, message, parent=None, **kwargs):
+    if parent is None:
+        parent = get_tk_root().focus_get()
     import tkMessageBox
     print ' ' + title + ': ' + message
-    return tkMessageBox.askyesno(title, message)
+    return tkMessageBox.askyesno(title, message, parent=parent,  **kwargs)
 
 class PluginInfo(object):
     '''
@@ -216,7 +220,8 @@ class PluginInfo(object):
                 self.commands.append(name)
             cmd.extend = extend_overload
 
-            if force and self.loaded:
+            # do not use self.loaded here
+            if force and self.module is not None:
                 reload(self.module)
             else:
                 __import__(self.mod_name, level=0)
@@ -245,7 +250,7 @@ class PluginInfo(object):
 
         return True
 
-    def uninstall(self):
+    def uninstall(self, parent=None):
         '''
         Remove a plugin
 
@@ -253,8 +258,11 @@ class PluginInfo(object):
         '''
         import tkMessageBox
 
+        if parent is None:
+            parent = get_tk_root().focus_get()
+
         ok = tkMessageBox.askyesno('Confirm',
-                'Do you really want to uninstall plugin "%s"' % (self.name))
+                'Do you really want to uninstall plugin "%s"' % (self.name), parent=parent)
         if not ok:
             return False
 
@@ -270,12 +278,14 @@ class PluginInfo(object):
                     if os.path.exists(filename):
                         os.remove(filename)
         except OSError:
-            showinfo('Error', 'Could not delete files for plugin "%s".' % (self.name))
+            showinfo('Error', 'Could not delete files for plugin "%s".' % (self.name), parent=parent)
             return False
 
         plugins.pop(self.name, None)
+        autoload.pop(self.name, None)
+        set_pref_changed()
 
-        showinfo('Info', 'Plugin "%s" successfully removed. Please restart PyMOL.' % (self.name))
+        showinfo('Info', 'Plugin "%s" successfully removed. Please restart PyMOL.' % (self.name), parent=parent)
         return True
 
 def findPlugins(paths):

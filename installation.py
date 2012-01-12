@@ -35,7 +35,7 @@ def is_writable(dirname):
     except (IOError, OSError):
         return False
 
-def installPluginFromFile(ofile):
+def installPluginFromFile(ofile, parent=None):
     '''
     Install plugin from file.
 
@@ -44,7 +44,10 @@ def installPluginFromFile(ofile):
     import shutil
     from . import startup, PluginInfo, showinfo, askyesno
     from . import get_startup_path, set_startup_path, pref_get
-    from .legacysupport import get_tk_root
+
+    if parent is None:
+        from .legacysupport import get_tk_root
+        parent = get_tk_root().focus_get()
 
     plugdirs = get_startup_path()
     if len(plugdirs) == 1:
@@ -57,7 +60,7 @@ def installPluginFromFile(ofile):
             dialog.destroy()
 
         import Pmw
-        dialog = Pmw.SelectionDialog(get_tk_root(), title='Select plugin directory',
+        dialog = Pmw.SelectionDialog(parent, title='Select plugin directory',
                 buttons = ('OK', 'Cancel'), defaultbutton='OK',
                 scrolledlist_labelpos='n',
                 label_text='In which directory should the plugin be installed?',
@@ -77,15 +80,16 @@ def installPluginFromFile(ofile):
         user_plugdir = get_default_user_plugin_path()
         if not askyesno('Warning',
                 'Unable to write to the plugin directory.\n'
-                'Should a user plugin directory be created at\n' + user_plugdir + '?'):
-            showinfo('Error', 'Installation aborted')
+                'Should a user plugin directory be created at\n' + user_plugdir + '?',
+                parent=parent):
+            showinfo('Error', 'Installation aborted', parent=parent)
             return
 
         if not os.path.exists(user_plugdir):
             try:
                 os.makedirs(user_plugdir)
             except OSError:
-                showinfo('Error', 'Could not create user plugin directory')
+                showinfo('Error', 'Could not create user plugin directory', parent=parent)
                 return
 
         plugdir = user_plugdir
@@ -103,7 +107,7 @@ def installPluginFromFile(ofile):
         ext = ext.rsplit('.', 1)[-1].lower()
 
     if ext not in supported_extensions:
-        showinfo('Error', 'Not a valid plugin file, installation cancelled!')
+        showinfo('Error', 'Not a valid plugin file, installation cancelled!', parent=parent)
         return
 
     def remove_if_exists(pathname):
@@ -117,7 +121,7 @@ def installPluginFromFile(ofile):
             msg = 'Directory "%s" already exists, overwrite?' % pathname
         else:
             msg = 'File "%s" already exists, overwrite?' % pathname
-        ok = askyesno('Confirm', msg)
+        ok = askyesno('Confirm', msg, parent=parent)
         if not ok:
             raise UserWarning('will not overwrite "%s"' % pathname)
         if is_dir:
@@ -189,21 +193,22 @@ def installPluginFromFile(ofile):
         if pref_get('verbose', False):
             import traceback
             traceback.print_exc()
-        showinfo('Error', 'unable to install plugin "%s"' % name)
+        showinfo('Error', 'unable to install plugin "%s"' % name, parent=parent)
         return
 
     prefix = startup.__name__
     info = PluginInfo(name, prefix + '.' + name, mod_file)
 
     if info.load(force=1):
-        showinfo('Success', 'Plugin "%s" has been installed.' % name)
+        showinfo('Success', 'Plugin "%s" has been installed.' % name, parent=parent)
     else:
-        showinfo('Error', 'Plugin "%s" has been installed but initialization failed.' % name)
+        showinfo('Error', 'Plugin "%s" has been installed but initialization failed.' % name, parent=parent)
 
     if info.get_citation_required():
         if askyesno('Citation Required', 'This plugin requires citation. Show information now?'
-                '\n\n(You can always get this information from the Plugin Manager, click the "Info" button there)'):
+                '\n\n(You can always get this information from the Plugin Manager, click the "Info" button there)',
+                parent=parent):
             from .managergui import plugin_info_dialog
-            plugin_info_dialog(get_tk_root(), info)
+            plugin_info_dialog(parent, info)
 
 # vi:expandtab:smarttab:sw=4

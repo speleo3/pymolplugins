@@ -217,6 +217,10 @@ ARGUMENTS
     if dest is None:
         dest = cmd.get('fetch_path')
 
+    # remove hash
+    if '#' in title:
+        title = title.split('#')[0]
+
     # github
     git_master = 'https://raw.github.com/Pymol-Scripts/Pymol-script-repo/master/'
     m = re.match(r'https://(?:raw\.)?github\.com/Pymol-Scripts/Pymol-script-repo/(?:raw/|blob/)?master/(.*)', title)

@@ -69,6 +69,7 @@ def initializePlugins(self):
     def plugin_manager():
         from . import managergui
         managergui.manager_dialog()
+    self.menuBar.deletemenuitems('PluginAction', 0, 2)
     addmenuitem('-', None, 'PluginAction')
     addmenuitem('Plugin Manager', plugin_manager, 'PluginAction')
 
