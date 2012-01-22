@@ -8,6 +8,7 @@ License: BSD-2-Clause
 
 import Pmw
 import Tkinter
+from .legacysupport import tkMessageBox, tkFileDialog
 
 default_pad = {'padx': 5, 'pady': 5}
 default_top = {'fill': 'x', 'anchor': 'n', 'side': 'top'}
@@ -224,7 +225,7 @@ class PluginManager(Pmw.MegaToplevel):
         repo_bb_right = Pmw.ButtonBox(pane_right)
 
         def dummy_command():
-            from . import showinfo
+            showinfo = tkMessageBox.showinfo
             showinfo('Dummy', 'Not implemented', parent=self.interior())
         repo_bb_left.add('Add ...', command=dummy_command)
         repo_bb_left.add('Remove', command=dummy_command)
@@ -253,7 +254,6 @@ class PluginManager(Pmw.MegaToplevel):
 
         def slb_path_add():
             import os
-            import tkFileDialog
             from .installation import get_default_user_plugin_path as userpath
             d = tkFileDialog.askdirectory(initialdir=userpath(), parent=self.interior())
             if not len(d):
@@ -448,7 +448,6 @@ class PluginWidget(Tkinter.Frame):
         '''
         self.info.autoload = self.v_startup.get()
         if self.info.autoload and not self.info.loaded:
-            import tkMessageBox
             if tkMessageBox.askyesno('Confirm', 'Load plugin now?', parent=self):
                 self.plugin_load()
         PluginManager.b_save.configure(background='red')

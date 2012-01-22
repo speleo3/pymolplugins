@@ -13,6 +13,9 @@ import os
 zip_extensions = ['zip', 'tar.gz']
 supported_extensions = ['py'] + zip_extensions
 
+class InstallationCancelled(Exception):
+    pass
+
 def get_default_user_plugin_path():
     '''
     User plugin directory defaults to ~/.pymol/startup on Linux and to
@@ -35,6 +38,26 @@ def is_writable(dirname):
     except (IOError, OSError):
         return False
 
+def cmp_version(v1, v2):
+    '''
+    Compares two version strings. An empty version string is always considered
+    smaller than a non-empty version string.
+
+    Uses distutils.version.StrictVersion to evaluate non-empty version strings.
+    '''
+    if v1 == v2:
+        return 0
+    if v1 == '':
+        return -1
+    if v2 == '':
+        return 1
+    try:
+        from distutils.version import StrictVersion as Version
+        return cmp(Version(v1), Version(v2))
+    except:
+        print ' Warning: Version parsing failed for', v1, 'and/or', v2
+        return 0
+
 def installPluginFromFile(ofile, parent=None):
     '''
     Install plugin from file.
@@ -42,12 +65,15 @@ def installPluginFromFile(ofile, parent=None):
     Takes python (.py) files and archives which contain a python module.
     '''
     import shutil
-    from . import startup, PluginInfo, showinfo, askyesno
+    from . import startup, PluginInfo
     from . import get_startup_path, set_startup_path, pref_get
+    from .legacysupport import tkMessageBox, get_tk_focused
 
     if parent is None:
-        from .legacysupport import get_tk_root
-        parent = get_tk_root().focus_get()
+        parent = get_tk_focused()
+
+    showinfo = tkMessageBox.showinfo
+    askyesno = tkMessageBox.askyesno
 
     plugdirs = get_startup_path()
     if len(plugdirs) == 1:
@@ -110,24 +136,55 @@ def installPluginFromFile(ofile, parent=None):
         showinfo('Error', 'Not a valid plugin file, installation cancelled!', parent=parent)
         return
 
-    def remove_if_exists(pathname):
+    def remove_if_exists(pathname, ask):
+        '''
+        Remove existing plugin files before reinstallation. Will not remove
+        files if installing into different startup directory.
+        '''
         if not os.path.exists(pathname):
             return
 
-        # TODO: check and compare version
-
         is_dir = os.path.isdir(pathname)
-        if is_dir:
-            msg = 'Directory "%s" already exists, overwrite?' % pathname
-        else:
-            msg = 'File "%s" already exists, overwrite?' % pathname
-        ok = askyesno('Confirm', msg, parent=parent)
-        if not ok:
-            raise UserWarning('will not overwrite "%s"' % pathname)
+
+        if ask:
+            if is_dir:
+                msg = 'Directory "%s" already exists, overwrite?' % pathname
+            else:
+                msg = 'File "%s" already exists, overwrite?' % pathname
+            if not tkMessageBox.askyesno('Confirm', msg, parent=parent):
+                raise InstallationCancelled('will not overwrite "%s"' % pathname)
+
         if is_dir:
             shutil.rmtree(pathname)
         else:
             os.remove(pathname)
+
+    def check_reinstall(name, pathname):
+        from . import plugins
+
+        if name not in plugins:
+            remove_if_exists(pathname, True)
+            return
+
+        if ext != 'py':
+            # TODO handle zip files
+            remove_if_exists(pathname, True)
+            return
+
+        v_installed = plugins[name].get_version()
+        v_new = PluginInfo(name, None, ofile, False).get_version()
+        c = cmp_version(v_new, v_installed)
+        if c > 0:
+            msg = 'An older version (%s) of this plugin is already installed. Install version %s now?' % (v_installed, v_new)
+        elif c == 0:
+            msg = 'Plugin already installed. Reinstall?'
+        else:
+            msg = 'A newer version (%s) of this plugin is already installed. Install anyway?' % (v_installed)
+
+        if not tkMessageBox.askokcancel('Confirm', msg, parent=parent):
+            raise InstallationCancelled
+
+        remove_if_exists(pathname, False)
 
     try:
         if ext in zip_extensions:
@@ -154,7 +211,7 @@ def installPluginFromFile(ofile, parent=None):
             namedict = dict()
             for f in namelist:
                 x = namedict
-                for part in f.split(os.sep):
+                for part in f.split('/'): # even on windows this is a forward slash (not os.sep)
                     if part != '':
                         x = x.setdefault(part, {})
             if len(namedict) == 0:
@@ -167,7 +224,7 @@ def installPluginFromFile(ofile, parent=None):
             # install
             mod_dir = os.path.join(plugdir, name)
             mod_file = os.path.join(mod_dir, '__init__.py')
-            remove_if_exists(mod_dir)
+            check_reinstall(name, mod_dir)
             zf.extractall(plugdir)
 
         elif name == '__init__':
@@ -175,7 +232,7 @@ def installPluginFromFile(ofile, parent=None):
             odir = os.path.dirname(ofile)
             name = os.path.basename(odir)
             mod_dir = os.path.join(plugdir, name)
-            remove_if_exists(mod_dir)
+            check_reinstall(name, mod_dir)
             shutil.copytree(odir, mod_dir)
 
             mod_file = os.path.join(mod_dir, '__init__.py')
@@ -183,11 +240,15 @@ def installPluginFromFile(ofile, parent=None):
         elif ext == 'py':
             # import python file
             mod_file = os.path.join(plugdir, name + '.py')
-            remove_if_exists(mod_file)
+            check_reinstall(name, mod_file)
             shutil.copy(ofile, mod_file)
 
         else:
             raise UserWarning('this should never happen')
+
+    except InstallationCancelled:
+        showinfo('Info', 'Installation cancelled', parent=parent)
+        return
 
     except:
         if pref_get('verbose', False):
