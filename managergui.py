@@ -29,9 +29,17 @@ def plugin_info_dialog(parent, info):
             title = 'Info about plugin ' + info.name)
     grid = dialog.interior()
 
+    highlighted_labels = ['Citation', 'Citation-Required']
+
+    bg_important = '#ff6666'
+    bg_notice = '#ffff99'
+
     def add_line(label, text):
+        bg = None
+        if label in highlighted_labels:
+            bg = bg_important
         row = grid.grid_size()[1]
-        Tkinter.Label(grid, text=label + ':').grid(row=row, column=0, sticky='nw', padx=5, pady=2)
+        Tkinter.Label(grid, text=label + ':', bg=bg).grid(row=row, column=0, sticky='nw', padx=5, pady=2)
         e = Tkinter.Entry(grid)
         e.insert(0, str(text))
         e.config(state='readonly')
@@ -39,7 +47,7 @@ def plugin_info_dialog(parent, info):
 
     if info.get_citation_required():
         Tkinter.Label(grid, text='This Plugin requires citation! See below for details',
-                bg='#ff3333', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+                bg=bg_important, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
 
     add_line('Name', info.name)
     add_line('Python Module Name', info.mod_name)
@@ -52,7 +60,7 @@ def plugin_info_dialog(parent, info):
 
     if not info.loaded:
         Tkinter.Label(grid, text='more information might be available after plugin is loaded',
-                bg='#ffff99', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+                bg=bg_notice, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
         return
 
     add_line('commands', ', '.join(info.commands))
@@ -65,7 +73,7 @@ def plugin_info_dialog(parent, info):
         grid.rowconfigure(grid.grid_size()[1] - 1, weight=1)
     else:
         Tkinter.Label(grid, text='no documentation available',
-                bg='#ff9999', padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+                bg=bg_notice, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
 
 class PluginManager(Pmw.MegaToplevel):
     '''
@@ -263,7 +271,7 @@ class PluginManager(Pmw.MegaToplevel):
             items = list(slb_path.get())
             items.append(d)
             slb_path_setlist(items)
-            slb_path.setvalue(d)
+            slb_path.setvalue([d]) # provide list to avoid unicode problem
 
         def slb_path_remove():
             v = slb_path.getvalue()
@@ -283,11 +291,11 @@ class PluginManager(Pmw.MegaToplevel):
             items.pop(i)
             items.insert(i+j, v[0])
             slb_path_setlist(items)
-            slb_path.setvalue(v[0])
+            slb_path.setvalue([v[0]]) # provide list to avoid unicode problem
 
         slb_path = Pmw.ScrolledListBox(w.interior(),
                 items=get_startup_path(), listbox_height=4)
-        slb_path.setvalue(slb_path.get(0,0))
+        slb_path.setvalue([slb_path.get(0)]) # provide list to avoid unicode problem
         slb_path.pack(**default_top)
 
         bb_path = Pmw.ButtonBox(w.interior())
