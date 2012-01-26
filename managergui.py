@@ -170,9 +170,7 @@ class PluginManager(Pmw.MegaToplevel):
                 'scanned for scripts that extend the PyMOL API', justify='left', anchor='w', wraplength=500)
         l_repo.pack(**default_top)
 
-        l_wiki = Tkinter.Label(w, text='URL:')
-        l_wiki.pack(side='left', **default_pad)
-        e_wiki = Tkinter.Entry(w)
+        e_wiki = Pmw.EntryField(w, labelpos='w', label_text='URL:', command=fetchplugin)
         e_wiki.pack(side='left', fill='x', expand=1, **default_pad)
         b_wiki = Tkinter.Button(w, text='Fetch',
                 command=fetchplugin)
