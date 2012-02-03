@@ -16,6 +16,9 @@ supported_extensions = ['py'] + zip_extensions
 class InstallationCancelled(Exception):
     pass
 
+class BadInstallationFile(Exception):
+    pass
+
 def get_default_user_plugin_path():
     '''
     User plugin directory defaults to ~/.pymol/startup on Linux and to
@@ -166,11 +169,6 @@ def installPluginFromFile(ofile, parent=None):
             remove_if_exists(pathname, True)
             return
 
-        if ext != 'py':
-            # TODO handle zip files
-            remove_if_exists(pathname, True)
-            return
-
         v_installed = plugins[name].get_version()
         v_new = PluginInfo(name, None, ofile, False).get_version()
         c = cmp_version(v_new, v_installed)
@@ -186,12 +184,14 @@ def installPluginFromFile(ofile, parent=None):
 
         remove_if_exists(pathname, False)
 
+    def check_valid_name(name):
+        if '.' in name:
+            raise BadInstallationFile('name must not contain dots (%s).' % repr(name))
+
+    temppathnames = []
     try:
         if ext in zip_extensions:
             # import archive
-
-            # TODO: better first extract to temporary directory and then
-            # install from there
 
             if ext == 'zip':
                 import zipfile
@@ -206,7 +206,7 @@ def installPluginFromFile(ofile, parent=None):
             for f in namelist:
                 f = os.path.normpath(f)
                 if not os.path.abspath(f).startswith(cwd):
-                    raise UserWarning('ZIP file contains absolute path names')
+                    raise BadInstallationFile('ZIP file contains absolute path names')
             # analyse structure
             namedict = dict()
             for f in namelist:
@@ -215,17 +215,41 @@ def installPluginFromFile(ofile, parent=None):
                     if part != '':
                         x = x.setdefault(part, {})
             if len(namedict) == 0:
-                raise UserWarning('Archive empty.')
-            name = namedict.keys()[0]
-            if '.' in name or len(namedict) != 1:
-                raise UserWarning('Archive must contain a single directory.')
-            if '__init__.py' not in namedict[name]:
-                raise UserWarning('Missing %s.__init__.py' % (name))
+                raise BadInstallationFile('Archive empty.')
+
+            # case 1: zip/<name>/__init__.py
+            names = [(name,)
+                    for name in namedict
+                    if '__init__.py' in namedict[name]]
+            if len(names) == 0:
+                # case 2: zip/<name>-<version>/<name>/__init__.py
+                names = [(pname, name)
+                        for (pname, pdict) in namedict.iteritems()
+                        for name in pdict
+                        if '__init__.py' in pdict[name]]
+
+            if len(names) == 0:
+                raise BadInstallationFile('Missing __init__.py')
+            if len(names) > 1:
+                raise BadInstallationFile('Archive must contain a single package.')
+            name = names[0][-1]
+            check_valid_name(name)
+
+            # extract
+            import tempfile
+            tempdir = tempfile.mkdtemp()
+            temppathnames.append((tempdir, 1))
+            zf.extractall(tempdir)
+
             # install
+            odir = os.path.join(tempdir, *names[0])
+            ofile = os.path.join(odir, '__init__.py')
             mod_dir = os.path.join(plugdir, name)
-            mod_file = os.path.join(mod_dir, '__init__.py')
             check_reinstall(name, mod_dir)
-            zf.extractall(plugdir)
+            check_valid_name(name)
+            shutil.copytree(odir, mod_dir)
+
+            mod_file = os.path.join(mod_dir, '__init__.py')
 
         elif name == '__init__':
             # import directory
@@ -233,6 +257,7 @@ def installPluginFromFile(ofile, parent=None):
             name = os.path.basename(odir)
             mod_dir = os.path.join(plugdir, name)
             check_reinstall(name, mod_dir)
+            check_valid_name(name)
             shutil.copytree(odir, mod_dir)
 
             mod_file = os.path.join(mod_dir, '__init__.py')
@@ -241,6 +266,7 @@ def installPluginFromFile(ofile, parent=None):
             # import python file
             mod_file = os.path.join(plugdir, name + '.py')
             check_reinstall(name, mod_file)
+            check_valid_name(name)
             shutil.copy(ofile, mod_file)
 
         else:
@@ -256,6 +282,13 @@ def installPluginFromFile(ofile, parent=None):
             traceback.print_exc()
         showinfo('Error', 'unable to install plugin "%s"' % name, parent=parent)
         return
+
+    finally:
+        for (pathname, is_dir) in temppathnames:
+            if is_dir:
+                shutil.rmtree(pathname)
+            else:
+                os.remove(pathname)
 
     prefix = startup.__name__
     info = PluginInfo(name, prefix + '.' + name, mod_file)
