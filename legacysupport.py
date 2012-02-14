@@ -74,6 +74,14 @@ def initializePlugins(self):
     '''
     from . import findPlugins, PluginInfo, addmenuitem
 
+    # Load plugin manager independent of other plugins
+    def plugin_manager():
+        from . import managergui
+        managergui.manager_dialog()
+    self.menuBar.deletemenuitems('Plugin', 0, 2)
+    addmenuitem('Plugin Manager', plugin_manager, 'Plugin')
+    addmenuitem('-', None, 'Plugin')
+
     for parent in [startup]:
         modules = findPlugins(parent.__path__)
 
@@ -82,14 +90,6 @@ def initializePlugins(self):
             info = PluginInfo(name, mod_name, filename)
             if info.autoload:
                 info.load(self)
-
-    # Load plugin manager independent of other plugins
-    def plugin_manager():
-        from . import managergui
-        managergui.manager_dialog()
-    self.menuBar.deletemenuitems('PluginAction', 0, 2)
-    addmenuitem('-', None, 'PluginAction')
-    addmenuitem('Plugin Manager', plugin_manager, 'PluginAction')
 
 def createlegacypmgapp():
     '''
@@ -100,7 +100,8 @@ def createlegacypmgapp():
     app = pymol.Scratch_Storage()
     app.root = None
     app.menuBar = pymol.Scratch_Storage()
-    app.menuBar.addmenuitem = lambda *x, **y: None
+    app.menuBar.addmenuitem = \
+    app.menuBar.deletemenuitems = \
     app.menuBar.addcascademenu = lambda *x, **y: None
 
     def starttk():
