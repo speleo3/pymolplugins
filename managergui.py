@@ -105,6 +105,7 @@ class PluginManager(Pmw.MegaToplevel):
         self.page_installed(notebook)
         self.page_install_new(notebook)
         self.page_settings(notebook)
+        self.page_about(notebook)
 
     def page_installed(self, notebook):
         page = notebook.add('Installed Plugins')
@@ -122,7 +123,14 @@ class PluginManager(Pmw.MegaToplevel):
         e_filter = Pmw.EntryField(f_filter, labelpos='w', label_text='Filter:', modifiedcommand=filter_command)
         e_filter.pack(side='left', expand=1, fill='x')
 
+        # enable/disable all items
+        f_all = Tkinter.Frame(page)
+        Tkinter.Button(f_all, text='startup all', command=f_installed.startup_all).pack(side='left')
+        Tkinter.Button(f_all, text='startup none', command=f_installed.startup_none).pack(side='left')
+
+        # pack
         f_filter.pack(**default_top)
+        f_all.pack(side='bottom', anchor='w', **default_pad)
         f_installed.pack(side='top', fill='both', expand=1, **default_pad)
 
         self.f_installed = f_installed
@@ -323,6 +331,18 @@ class PluginManager(Pmw.MegaToplevel):
             e.grid(row=row, column=1, sticky='nwe', padx=5, pady=2)
         w.columnconfigure(1, weight=1)
 
+    def page_about(self, notebook):
+        page = notebook.add('About')
+
+        st = Pmw.ScrolledText(page, text_wrap='word')
+        st.appendtext('Plugins are external modules which extend PyMOL\'s capabilities.\n\n'
+                'Plugins can provide new commands and/or add menu items to the "Plugin" menu.\n\n'
+                'For technical details, visit\n'
+                'http://pymolwiki.org/index.php/PluginArchitecture\n'
+                'http://pymolwiki.org/index.php/Script_Tutorial\n')
+        st.configure(text_state='disabled')
+        st.pack(fill='both', expand=1, **default_pad)
+
 class InstalledPluginsWidget(Pmw.ScrolledFrame):
     '''
     Scrolled widget that shows all installed plugins.
@@ -395,6 +415,18 @@ class InstalledPluginsWidget(Pmw.ScrolledFrame):
                 bind_rec(child)
         bind_rec(self)
 
+    def startup_all(self):
+        for child in self.children():
+            child.w_startup.select()
+            if not child.info.autoload:
+                child.c_startup(False)
+
+    def startup_none(self):
+        for child in self.children():
+            child.w_startup.deselect()
+            if child.info.autoload:
+                child.c_startup(False)
+
 class PluginWidget(Tkinter.Frame):
     '''
     Item of InstalledPluginsWidget that represents a installed plugin.
@@ -448,12 +480,12 @@ class PluginWidget(Tkinter.Frame):
 
         self.status_update()
 
-    def c_startup(self):
+    def c_startup(self, askload=True):
         '''
         Callback for "autoload" checkbox.
         '''
         self.info.autoload = self.v_startup.get()
-        if self.info.autoload and not self.info.loaded:
+        if askload and self.info.autoload and not self.info.loaded:
             if tkMessageBox.askyesno('Confirm', 'Load plugin now?', parent=self):
                 self.plugin_load()
         PluginManager.b_save.configure(background='red')
