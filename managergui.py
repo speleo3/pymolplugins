@@ -210,6 +210,27 @@ class PluginManager(Pmw.MegaToplevel):
             except:
                 slb_right.setlist(['- listing failed -'])
 
+        def infocmd_right():
+            '''
+            Download file, parse for metadata, show info-popup and delete file
+            '''
+            from . import PluginInfo
+            sels = slb_right.getcurselection()
+            if len(sels) == 0:
+                return
+            import tempfile, shutil, os
+            tmpdir = tempfile.mkdtemp()
+            try:
+                name = sels[0]
+                repo_tmp.r.copy(name, tmpdir)
+                filename = os.path.join(tmpdir, name)
+                # TODO: get plugin name, unzip archives
+                info = PluginInfo('<temporary>', filename)
+                plugin_info_dialog(self.interior(), info)
+            finally:
+                print 'cleaning up...'
+                shutil.rmtree(tmpdir)
+
         def selecmd_right():
             from .installation import installPluginFromFile
             sels = slb_right.getcurselection()
@@ -230,6 +251,9 @@ class PluginManager(Pmw.MegaToplevel):
         slb_left = Pmw.ScrolledListBox(pane_left, items=(
                 'http://pldserver1.biochem.queensu.ca/~rlc/work/pymol/',
                 'https://github.com/Pymol-Scripts/Pymol-script-repo',
+
+                # for testing
+                'http://www.thomas-holder.de/projects/pymol/repository/',
                 ),
             listbox_height=30, labelpos='nw', label_text='Repositories',
             selectioncommand=selecmd_left)
@@ -245,6 +269,7 @@ class PluginManager(Pmw.MegaToplevel):
             showinfo('Dummy', 'Not implemented', parent=self.interior())
         repo_bb_left.add('Add ...', command=dummy_command)
         repo_bb_left.add('Remove', command=dummy_command)
+        repo_bb_right.add('Info', command=infocmd_right)
         repo_bb_right.add('Install', command=selecmd_right)
 
         repo_bb_left.pack(side='bottom', fill='x',)
