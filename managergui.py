@@ -46,32 +46,34 @@ def plugin_info_dialog(parent, info):
         e.grid(row=row, column=1, sticky='nwe', padx=5, pady=2)
 
     if info.get_citation_required():
-        Tkinter.Label(grid, text='This Plugin requires citation! See below for details',
+        Tkinter.Label(grid, text='This Plugin requires a citation. See below for details.',
                 bg=bg_important, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
 
     add_line('Name', info.name)
-    add_line('Python Module Name', info.mod_name)
-    add_line('Filename', info.filename)
+    if not info.is_temporary:
+        add_line('Python Module Name', info.mod_name)
+        add_line('Filename', info.filename)
     grid.columnconfigure(1, weight=1)
 
     metadata = info.get_metadata()
     for label, value in metadata.iteritems():
         add_line(label, value)
 
-    if not info.loaded:
-        Tkinter.Label(grid, text='more information might be available after plugin is loaded',
-                bg=bg_notice, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
-        return
+    if not info.is_temporary:
+        if not info.loaded:
+            Tkinter.Label(grid, text='more information might be available after plugin is loaded',
+                    bg=bg_notice, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
+        else:
+            add_line('commands', ', '.join(info.commands))
 
-    add_line('commands', ', '.join(info.commands))
-
-    if info.module.__doc__ is not None:
+    docstring = info.get_docstring()
+    if docstring is not None:
         st = Pmw.ScrolledText(grid, text_wrap='none', text_padx = 4, text_pady = 4)
-        st.appendtext(info.module.__doc__.strip())
+        st.appendtext(docstring.strip())
         st.configure(text_state='disabled')
         st.grid(columnspan=2, sticky='nesw', padx=5, pady=2)
         grid.rowconfigure(grid.grid_size()[1] - 1, weight=1)
-    else:
+    elif info.loaded or info.is_temporary:
         Tkinter.Label(grid, text='no documentation available',
                 bg=bg_notice, padx=10, pady=10).grid(columnspan=2, sticky='nesw')
 

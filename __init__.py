@@ -112,8 +112,11 @@ DESCRIPTION
 class PluginInfo(object):
     '''
     Hold all information about a plugin.
+
+    A instance with mod_name=None is considered a temporary instance which
+    cannot be loaded (during installation, for extraction of metadata, ...)
     '''
-    def __init__(self, name, mod_name, filename, register=True):
+    def __init__(self, name, filename, mod_name=None):
         self.name = name
         self.mod_name = mod_name
         self.filename = filename
@@ -123,7 +126,7 @@ class PluginInfo(object):
         self.commands = []
 
         # register
-        if register:
+        if not self.is_temporary:
             plugins[name] = self
 
     def __repr__(self):
@@ -145,6 +148,10 @@ class PluginInfo(object):
     @property
     def loaded(self):
         return self.loadtime is not None
+
+    @property
+    def is_temporary(self):
+        return self.mod_name is None
 
     def get_metadata(self):
         '''
@@ -182,12 +189,30 @@ class PluginInfo(object):
         v = self.get_metadata().get('Citation-Required', 'No')
         return v.lower() == 'yes'
 
+    def get_docstring(self):
+        '''
+        Get docstring either from loaded module, or try to parse first python
+        statement from file, without executing any code.
+        '''
+        if self.loaded:
+            return self.module.__doc__
+
+        try:
+            c = compile(''.join(open(self.filename)), 'x', 'single')
+            s = c.co_consts[0]
+            if isinstance(s, basestring):
+                return s
+        except:
+            pass
+
     def load(self, pmgapp=None, force=0):
         '''
         Load and initialize plugin.
         '''
         import types, time
         from pymol import cmd
+
+        assert not self.is_temporary
 
         starttime = time.time()
         if pmgapp is None:

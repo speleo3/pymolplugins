@@ -87,7 +87,7 @@ def initializePlugins(self):
 
         for name, filename in modules.iteritems():
             mod_name = parent.__name__ + '.' + name
-            info = PluginInfo(name, mod_name, filename)
+            info = PluginInfo(name, filename, mod_name)
             if info.autoload:
                 info.load(self)
 

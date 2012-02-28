@@ -170,7 +170,7 @@ def installPluginFromFile(ofile, parent=None):
             return
 
         v_installed = plugins[name].get_version()
-        v_new = PluginInfo(name, None, ofile, False).get_version()
+        v_new = PluginInfo(name, ofile).get_version()
         c = cmp_version(v_new, v_installed)
         if c > 0:
             msg = 'An older version (%s) of this plugin is already installed. Install version %s now?' % (v_installed, v_new)
@@ -291,7 +291,7 @@ def installPluginFromFile(ofile, parent=None):
                 os.remove(pathname)
 
     prefix = startup.__name__
-    info = PluginInfo(name, prefix + '.' + name, mod_file)
+    info = PluginInfo(name, mod_file, prefix + '.' + name)
 
     if info.load(force=1):
         showinfo('Success', 'Plugin "%s" has been installed.' % name, parent=parent)
