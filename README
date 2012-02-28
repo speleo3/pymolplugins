@@ -26,8 +26,6 @@ Plugin API
 
 Knows Issues
 
-    * ZIP file installation broken on Windows
-    * Version not yet evaluated on reinstallation
     * Repository support in very provisional state
 
 Acknowledgements
