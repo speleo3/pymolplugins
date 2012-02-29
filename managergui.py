@@ -9,10 +9,29 @@ License: BSD-2-Clause
 import Pmw
 import Tkinter
 from .legacysupport import tkMessageBox, tkFileDialog
+from . import pref_get
 
 default_pad = {'padx': 5, 'pady': 5}
 default_top = {'fill': 'x', 'anchor': 'n', 'side': 'top'}
 default_top.update(default_pad)
+
+def confirm_network_access():
+    '''
+    Popup dialog with network access notification (only once per session)
+    '''
+    self = confirm_network_access
+    if self.ok < 0:
+        tkMessageBox.showinfo('Info',
+                'Network download has been disabled, sorry!')
+        return False
+    if self.ok > 0:
+        return True
+    self.ok = tkMessageBox.askyesno('Confirm', 'PyMOL will now download'
+            ' executable code from the internet! Proceed?')
+    return self.ok
+
+# valid values: 1=never ask, 0=ask once per session, -1=network access disabled
+confirm_network_access.ok = pref_get('network_access_ok', 0)
 
 def manager_dialog():
     '''
@@ -155,9 +174,17 @@ class PluginManager(Pmw.MegaToplevel):
         b_local = Tkinter.Button(w.interior(), text='Choose file...', command=c_local)
         b_local.pack(side='left', **default_pad)
 
+        if confirm_network_access.ok < 0:
+            Tkinter.Label(page,
+                    text='Network access has been disabled').pack(expand=1)
+            return
+
         # pymolwiki
 
         def fetchplugin():
+            if not confirm_network_access():
+                return
+
             from .installation import installPluginFromFile
             from .repository import fetchscript
             url = e_wiki.get()
@@ -198,6 +225,12 @@ class PluginManager(Pmw.MegaToplevel):
 
         repo_tmp = Scratch_Storage()
         def selecmd_left():
+            '''
+            Get plugins listing for selected repository.
+            '''
+            if not confirm_network_access():
+                return
+
             from .repository import guess
             sels = slb_left.getcurselection()
             if len(sels) == 0:
@@ -232,6 +265,9 @@ class PluginManager(Pmw.MegaToplevel):
                 shutil.rmtree(tmpdir)
 
         def selecmd_right():
+            '''
+            Download plugin from repository and install it.
+            '''
             from .installation import installPluginFromFile
             sels = slb_right.getcurselection()
             if len(sels) == 0:
