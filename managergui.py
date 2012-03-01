@@ -247,6 +247,7 @@ class PluginManager(Pmw.MegaToplevel):
             '''
             Download file, parse for metadata, show info-popup and delete file
             '''
+            ok = False
             from . import PluginInfo
             sels = slb_right.getcurselection()
             if len(sels) == 0:
@@ -255,13 +256,13 @@ class PluginManager(Pmw.MegaToplevel):
             tmpdir = tempfile.mkdtemp()
             try:
                 name = sels[0]
-                repo_tmp.r.copy(name, tmpdir)
-                filename = os.path.join(tmpdir, name)
-                # TODO: get plugin name, unzip archives
-                info = PluginInfo('<temporary>', filename)
-                plugin_info_dialog(self.interior(), info)
+                ok = repo_tmp.r.copy(name, tmpdir)
+                if ok:
+                    filename = os.path.join(tmpdir, name)
+                    # TODO: get plugin name, unzip archives
+                    info = PluginInfo('<temporary>', filename)
+                    plugin_info_dialog(self.interior(), info)
             finally:
-                print 'cleaning up...'
                 shutil.rmtree(tmpdir)
 
         def selecmd_right():

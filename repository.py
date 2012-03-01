@@ -7,6 +7,8 @@ This code is in very experimental state!
 License: BSD-2-Clause
 
 '''
+import urllib2
+from urllib2 import URLError
 
 from .installation import supported_extensions
 
@@ -49,6 +51,11 @@ class Repository():
             dst = os.path.join(dst, os.path.basename(name))
 
         content = self.retrieve(name)
+
+        # show an error instead?
+        if content==None:
+            return
+
         f = open(dst, 'w')
         f.write(content)
         f.close()
@@ -104,8 +111,20 @@ class HttpRepository(Repository):
         from urllib2 import urlopen
 
         url = self.get_full_url(name)
-        handle = urlopen(url)
-        content = handle.read()
+
+        # get page content
+        handle = None
+        content = None
+        try:
+            handle = urllib2.urlopen(url)
+        except URLError, e:
+            print "Plugin-Error: %s" % e
+            
+        if handle!=None:
+            content = ''.join(handle)
+        else:
+            return
+
         handle.close()
 
         return content
@@ -258,8 +277,17 @@ ARGUMENTS
             print 'Downloading', url
 
         # get page content
-        handle = urllib2.urlopen(url)
-        content = ''.join(handle)
+        handle = None
+        content = None
+        try:
+            handle = urllib2.urlopen(url)
+        except URLError, e:
+            print "Plugin-Error: %s" % e
+            
+        if handle!=None:
+            content = ''.join(handle)
+        else:
+            return
 
         if not rawscript:
             # redirect
