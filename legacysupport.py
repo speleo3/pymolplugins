@@ -133,11 +133,13 @@ PMGApp.installPlugin = installPlugin
 class _tkMessageBox(object):
     def __getattr__(self, name):
         import tkMessageBox as module
+        from . import pref_get
         wrapped = getattr(module, name)
         def dialog(title, message, parent=None, **kwargs):
             if parent is None:
                 parent = get_tk_focused()
-            print ' ' + title + ': ' + message
+            if pref_get('verbose'):
+                print ' ' + title + ': ' + message
             return wrapped(title, message, parent=parent,  **kwargs)
         setattr(self, name, dialog)
         return dialog

@@ -25,6 +25,12 @@ plugins = {}
 
 # API functions
 
+def is_verbose(debug=0):
+    verbose = pref_get('verbose')
+    if debug and verbose < 0:
+        return True
+    return verbose and pymol.invocation.options.show_splash
+
 def get_startup_path():
     return startup.__path__
 

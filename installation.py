@@ -61,6 +61,84 @@ def cmp_version(v1, v2):
         print ' Warning: Version parsing failed for', v1, 'and/or', v2
         return 0
 
+def get_name_and_ext(ofile):
+    '''
+    Given a filename, return module name and file extension.
+
+    Examples:
+    foo-1.0.py -> ('foo', 'py')
+    /foo/bar.tar.gz -> ('bar', 'tar.gz')
+    '''
+    import re
+
+    basename = os.path.basename(ofile)
+    pattern = r'(\w+).*\.(%s)$' % '|'.join(supported_extensions)
+    m = re.match(pattern, basename, re.IGNORECASE)
+
+    if m is None:
+        raise BadInstallationFile('Not a valid plugin filename (%s).' % (basename))
+
+    return m.group(1), m.group(2).lower()
+
+def check_valid_name(name):
+    '''
+    Check if "name" is a valid python module name.
+    '''
+    if '.' in name:
+        raise BadInstallationFile('name must not contain dots (%s).' % repr(name))
+
+def extract_zipfile(ofile, ext):
+    '''
+    Extract zip file to temporary directory
+    '''
+    if ext == 'zip':
+        import zipfile
+        zf = zipfile.ZipFile(ofile)
+    else:
+        import tarfile
+        zf = tarfile.open(ofile)
+        zf.namelist = zf.getnames
+    # make sure pathnames are not absolute
+    cwd = os.getcwd()
+    namelist = zf.namelist()
+    for f in namelist:
+        f = os.path.normpath(f)
+        if not os.path.abspath(f).startswith(cwd):
+            raise BadInstallationFile('ZIP file contains absolute path names')
+    # analyse structure
+    namedict = dict()
+    for f in namelist:
+        x = namedict
+        for part in f.split('/'): # even on windows this is a forward slash (not os.sep)
+            if part != '':
+                x = x.setdefault(part, {})
+    if len(namedict) == 0:
+        raise BadInstallationFile('Archive empty.')
+
+    # case 1: zip/<name>/__init__.py
+    names = [(name,)
+            for name in namedict
+            if '__init__.py' in namedict[name]]
+    if len(names) == 0:
+        # case 2: zip/<name>-<version>/<name>/__init__.py
+        names = [(pname, name)
+                for (pname, pdict) in namedict.iteritems()
+                for name in pdict
+                if '__init__.py' in pdict[name]]
+
+    if len(names) == 0:
+        raise BadInstallationFile('Missing __init__.py')
+    if len(names) > 1:
+        raise BadInstallationFile('Archive must contain a single package.')
+    check_valid_name(names[0][-1])
+
+    # extract
+    import tempfile
+    tempdir = tempfile.mkdtemp()
+    zf.extractall(tempdir)
+
+    return tempdir, names[0]
+
 def installPluginFromFile(ofile, parent=None):
     '''
     Install plugin from file.
@@ -126,19 +204,6 @@ def installPluginFromFile(ofile, parent=None):
     if plugdir not in plugdirs:
         set_startup_path([plugdir] + plugdirs)
 
-    basename = os.path.basename(ofile)
-    name, _, ext = basename.partition('.')
-
-    # ext may contain version numbers or multiple extensions
-    if '.tar' in ext:
-        ext = 'tar' + ext.lower().rsplit('.tar', 1)[-1]
-    else:
-        ext = ext.rsplit('.', 1)[-1].lower()
-
-    if ext not in supported_extensions:
-        showinfo('Error', 'Not a valid plugin file, installation cancelled!', parent=parent)
-        return
-
     def remove_if_exists(pathname, ask):
         '''
         Remove existing plugin files before reinstallation. Will not remove
@@ -184,65 +249,19 @@ def installPluginFromFile(ofile, parent=None):
 
         remove_if_exists(pathname, False)
 
-    def check_valid_name(name):
-        if '.' in name:
-            raise BadInstallationFile('name must not contain dots (%s).' % repr(name))
-
     temppathnames = []
     try:
+        name, ext = get_name_and_ext(ofile)
+
         if ext in zip_extensions:
             # import archive
 
-            if ext == 'zip':
-                import zipfile
-                zf = zipfile.ZipFile(ofile)
-            else:
-                import tarfile
-                zf = tarfile.open(ofile)
-                zf.namelist = zf.getnames
-            # make sure pathnames are not absolute
-            cwd = os.getcwd()
-            namelist = zf.namelist()
-            for f in namelist:
-                f = os.path.normpath(f)
-                if not os.path.abspath(f).startswith(cwd):
-                    raise BadInstallationFile('ZIP file contains absolute path names')
-            # analyse structure
-            namedict = dict()
-            for f in namelist:
-                x = namedict
-                for part in f.split('/'): # even on windows this is a forward slash (not os.sep)
-                    if part != '':
-                        x = x.setdefault(part, {})
-            if len(namedict) == 0:
-                raise BadInstallationFile('Archive empty.')
-
-            # case 1: zip/<name>/__init__.py
-            names = [(name,)
-                    for name in namedict
-                    if '__init__.py' in namedict[name]]
-            if len(names) == 0:
-                # case 2: zip/<name>-<version>/<name>/__init__.py
-                names = [(pname, name)
-                        for (pname, pdict) in namedict.iteritems()
-                        for name in pdict
-                        if '__init__.py' in pdict[name]]
-
-            if len(names) == 0:
-                raise BadInstallationFile('Missing __init__.py')
-            if len(names) > 1:
-                raise BadInstallationFile('Archive must contain a single package.')
-            name = names[0][-1]
-            check_valid_name(name)
-
-            # extract
-            import tempfile
-            tempdir = tempfile.mkdtemp()
+            tempdir, dirnames = extract_zipfile(ofile, ext)
             temppathnames.append((tempdir, 1))
-            zf.extractall(tempdir)
 
             # install
-            odir = os.path.join(tempdir, *names[0])
+            name = dirnames[-1]
+            odir = os.path.join(tempdir, *dirnames)
             ofile = os.path.join(odir, '__init__.py')
             mod_dir = os.path.join(plugdir, name)
             check_reinstall(name, mod_dir)

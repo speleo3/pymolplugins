@@ -247,23 +247,31 @@ class PluginManager(Pmw.MegaToplevel):
             '''
             Download file, parse for metadata, show info-popup and delete file
             '''
-            ok = False
             from . import PluginInfo
+            from .installation import get_name_and_ext, extract_zipfile, zip_extensions
             sels = slb_right.getcurselection()
             if len(sels) == 0:
                 return
             import tempfile, shutil, os
             tmpdir = tempfile.mkdtemp()
+            tmpdirs = [tmpdir]
             try:
                 name = sels[0]
-                ok = repo_tmp.r.copy(name, tmpdir)
-                if ok:
-                    filename = os.path.join(tmpdir, name)
-                    # TODO: get plugin name, unzip archives
-                    info = PluginInfo('<temporary>', filename)
-                    plugin_info_dialog(self.interior(), info)
+                repo_tmp.r.copy(name, tmpdir)
+                filename = os.path.join(tmpdir, name)
+                name, ext = get_name_and_ext(filename)
+                if ext in zip_extensions:
+                    tmpdir, dirnames = extract_zipfile(filename, ext)
+                    tmpdirs.append(tmpdir)
+                    name = dirnames[-1]
+                    filename = os.path.join(os.path.join(tmpdir, *dirnames), '__init__.py')
+                info = PluginInfo(name, filename)
+                plugin_info_dialog(self.interior(), info)
+            except:
+                tkMessageBox.showinfo('Error', 'Could not get plugin info')
             finally:
-                shutil.rmtree(tmpdir)
+                for tmpdir in tmpdirs:
+                    shutil.rmtree(tmpdir)
 
         def selecmd_right():
             '''
@@ -280,8 +288,9 @@ class PluginManager(Pmw.MegaToplevel):
                 repo_tmp.r.copy(name, tmpdir)
                 filename = os.path.join(tmpdir, name)
                 installPluginFromFile(filename, self.interior())
+            except:
+                tkMessageBox.showinfo('Error', 'Could not install plugin')
             finally:
-                print 'cleaning up...'
                 shutil.rmtree(tmpdir)
             self.f_installed.reload()
 

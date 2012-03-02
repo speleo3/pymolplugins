@@ -12,9 +12,25 @@ from urllib2 import URLError
 
 from .installation import supported_extensions
 
+def urlopen(url):
+    '''
+    urlopen wrapper with timeout from preferences ("network_timeout").
+
+    The timeout does not effect the "urlopen" call itself, that takes 20sec
+    for unavailable urls in my tests. Also "socket.setdefaulttimeout" does
+    not change that.
+    '''
+    from urllib2 import urlopen
+    from . import pref_get
+
+    timeout = pref_get('network_timeout', 10.0)
+    return urlopen(url, timeout=timeout)
+
 class Repository():
     '''
     Abstract repository class
+
+    All open/read operations should raise IOError on failure.
     '''
     def __init__(self, url):
         self.url = url
@@ -51,11 +67,6 @@ class Repository():
             dst = os.path.join(dst, os.path.basename(name))
 
         content = self.retrieve(name)
-
-        # show an error instead?
-        if content==None:
-            return
-
         f = open(dst, 'w')
         f.write(content)
         f.close()
@@ -79,7 +90,6 @@ class HttpRepository(Repository):
     '''
     def list_scan(self):
         import re
-        from urllib2 import urlopen
 
         # fetch as string
         handle = urlopen(self.url)
@@ -108,23 +118,9 @@ class HttpRepository(Repository):
         return names
 
     def retrieve(self, name):
-        from urllib2 import urlopen
-
         url = self.get_full_url(name)
-
-        # get page content
-        handle = None
-        content = None
-        try:
-            handle = urllib2.urlopen(url)
-        except URLError, e:
-            print "Plugin-Error: %s" % e
-            
-        if handle!=None:
-            content = ''.join(handle)
-        else:
-            return
-
+        handle = urlopen(url)
+        content = handle.read()
         handle.close()
 
         return content
@@ -172,7 +168,6 @@ class GithubRepository(HttpRepository):
     list = list_scan
 
     def fetchjson(self, url):
-        from urllib2 import urlopen
         handle = urlopen('https://api.github.com' + url)
         return eval(handle.read())
 
@@ -224,6 +219,8 @@ def fetchscript(title, dest=None, run=1, quiet=1):
 DESCRIPTION
 
     Fetch script from PyMOLWiki or Pymol-script-repo
+
+    Returns filename on success, or None on failure.
 
 ARGUMENTS
 
@@ -277,16 +274,11 @@ ARGUMENTS
             print 'Downloading', url
 
         # get page content
-        handle = None
-        content = None
         try:
-            handle = urllib2.urlopen(url)
-        except URLError, e:
+            handle = urlopen(url)
+            content = handle.read()
+        except IOError as e:
             print "Plugin-Error: %s" % e
-            
-        if handle!=None:
-            content = ''.join(handle)
-        else:
             return
 
         if not rawscript:
