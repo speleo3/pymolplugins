@@ -68,28 +68,26 @@ def initializePlugins(self):
     '''
     Overloaded version of pmg_tk.PMGApp.initializePlugins
 
-    Searches for plugins
-    Registers PluginInfo instances
-    Autoloads plugins
+    Initializes already loaded plugins.
     '''
-    from . import findPlugins, PluginInfo, addmenuitem
+    from . import plugins, addmenuitem
 
     # Load plugin manager independent of other plugins
     def plugin_manager():
         from . import managergui
         managergui.manager_dialog()
+
     self.menuBar.deletemenuitems('Plugin', 0, 2)
     addmenuitem('Plugin Manager', plugin_manager, 'Plugin')
     addmenuitem('-', None, 'Plugin')
 
-    for parent in [startup]:
-        modules = findPlugins(parent.__path__)
+    # TODO: Move to PyMOL launching and only do initialization here
+    from . import loadPlugins
+    loadPlugins()
 
-        for name, filename in modules.iteritems():
-            mod_name = parent.__name__ + '.' + name
-            info = PluginInfo(name, filename, mod_name)
-            if info.autoload:
-                info.load(self)
+    for info in plugins.itervalues():
+        if info.loaded:
+            info.legacyinit(self)
 
 def createlegacypmgapp():
     '''

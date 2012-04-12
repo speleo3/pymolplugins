@@ -214,9 +214,10 @@ class PluginInfo(object):
     def load(self, pmgapp=None, force=0):
         '''
         Load and initialize plugin.
+
+        If pmgapp == -1, do not initialize.
         '''
-        import types, time
-        from pymol import cmd
+        import time
 
         assert not self.is_temporary
 
@@ -239,16 +240,9 @@ class PluginInfo(object):
                 reload(self.module)
             else:
                 __import__(self.mod_name, level=0)
-            mod = self.module
 
-            if hasattr(mod, '__init_plugin__'):
-                mod.__init_plugin__(pmgapp)
-            elif hasattr(mod, '__init__'):
-                # ignore the build-in <method-wrapper '__init__'> that takes a
-                # string as first argument. Only call __init__ if it's of type
-                # 'function'
-                if isinstance(mod.__init__, types.FunctionType):
-                    mod.__init__(pmgapp)
+            if pmgapp != -1:
+                self.legacyinit(pmgapp)
 
             cmd.extend = extend_orig
 
@@ -263,6 +257,30 @@ class PluginInfo(object):
             return False
 
         return True
+
+    def legacyinit(self, pmgapp):
+        '''
+        Call the __init__ or __init_plugin__ function which takes the PMGApp
+        instance as argument (usually adds menu items).
+
+        This must be called after loading and after launching of the external
+        GUI (PMGApp).
+
+        Ignore the build-in <method-wrapper '__init__'> that takes a
+        string as first argument. Only call __init__ if it's of type
+        'function'.
+        '''
+        import types
+
+        mod = self.module
+        if mod is None:
+            raise RuntimeError('not loaded')
+
+        if hasattr(mod, '__init_plugin__'):
+            mod.__init_plugin__(pmgapp)
+        elif hasattr(mod, '__init__'):
+            if isinstance(mod.__init__, types.FunctionType):
+                mod.__init__(pmgapp)
 
     def uninstall(self, parent=None):
         '''
@@ -344,6 +362,23 @@ def findPlugins(paths):
     if verbose:
         print ' Scanning for modules took %.4f seconds' % (time.time() - start)
     return modules
+
+def loadPlugins(pmgapp=-1):
+    '''
+    Searches for plugins and registers them.
+
+    Autoloads plugins, but does not do initialization if pmgapp is -1 (default).
+
+    TODO: Call this on PyMOL launching, depending on a command line switch.
+    '''
+    for parent in [startup]:
+        modules = findPlugins(parent.__path__)
+
+        for name, filename in modules.iteritems():
+            mod_name = parent.__name__ + '.' + name
+            info = PluginInfo(name, filename, mod_name)
+            if info.autoload:
+                info.load(pmgapp)
 
 # pymol commands
 cmd.extend('plugin_load', plugin_load)
