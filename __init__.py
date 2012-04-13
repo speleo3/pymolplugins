@@ -14,6 +14,8 @@ from .legacysupport import *
 
 # variables
 
+PYMOLPLUGINSRC = os.path.expanduser('~/.pymolpluginsrc.py')
+
 preferences = {
     'verbose': True,
     'instantsave': True,
@@ -49,7 +51,7 @@ def pref_set(k, v):
 def pref_get(k, d=None):
     return preferences.get(k, d)
 
-def pref_save(filename='~/.pymolrc_plugins.py', quiet=1):
+def pref_save(filename=PYMOLPLUGINSRC, quiet=1):
     import pprint
     repr = pprint.pformat
 
@@ -103,6 +105,8 @@ DESCRIPTION
 
     Load plugin from command line.
     '''
+    if len(plugins) == 0:
+        initialize(-2)
     if name not in plugins:
         print ' Error: no such plugin'
         return
@@ -363,21 +367,34 @@ def findPlugins(paths):
         print ' Scanning for modules took %.4f seconds' % (time.time() - start)
     return modules
 
-def loadPlugins(pmgapp=-1):
+def initialize(pmgapp=-1):
     '''
     Searches for plugins and registers them.
 
-    Autoloads plugins, but does not do initialization if pmgapp is -1 (default).
-
-    TODO: Call this on PyMOL launching, depending on a command line switch.
+    pmgapp == -2: No Autoloading
+    pmgapp == -1: Autoloading but no legacyinit
+    else:         Autoloading and legacyinit
     '''
+
+    # check for obsolete development version of pymolplugins
+    if 'pymolplugins' in sys.modules:
+        from .legacysupport import tkMessageBox
+        tkMessageBox.showwarning('WARNING',
+                '"pymolplugins" now integrated into PyMOL as "pymol.plugins"! '
+                'Please remove the old pymolplugins module and delete ~/.pymolrc_plugins.py')
+
+    if os.path.exists(PYMOLPLUGINSRC):
+        from pymol import parsing
+        parsing.run_file(PYMOLPLUGINSRC, {'__script__': PYMOLPLUGINSRC}, {})
+
+    autoload = (pmgapp != -2)
     for parent in [startup]:
         modules = findPlugins(parent.__path__)
 
         for name, filename in modules.iteritems():
             mod_name = parent.__name__ + '.' + name
             info = PluginInfo(name, filename, mod_name)
-            if info.autoload:
+            if autoload and info.autoload:
                 info.load(pmgapp)
 
 # pymol commands

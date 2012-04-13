@@ -13,7 +13,7 @@ License: BSD-2-Clause
 
 import os
 import pymol
-from pmg_tk import startup, PMGApp
+from pmg_tk import startup
 
 __all__ = [
     'startup',
@@ -70,20 +70,23 @@ def initializePlugins(self):
 
     Initializes already loaded plugins.
     '''
+    from pymol.invocation import options
     from . import plugins, addmenuitem
+
+    if not options.plugins:
+        return
 
     # Load plugin manager independent of other plugins
     def plugin_manager():
         from . import managergui
         managergui.manager_dialog()
 
-    self.menuBar.deletemenuitems('Plugin', 0, 2)
     addmenuitem('Plugin Manager', plugin_manager, 'Plugin')
     addmenuitem('-', None, 'Plugin')
 
-    # TODO: Move to PyMOL launching and only do initialization here
-    from . import loadPlugins
-    loadPlugins()
+    if options.plugins == 2:
+        from . import initialize
+        return initialize(self)
 
     for info in plugins.itervalues():
         if info.loaded:
@@ -120,10 +123,6 @@ def createlegacypmgapp():
         maxwait -= wait
 
     return app
-
-# overload PMGApp methods
-PMGApp.initializePlugins = initializePlugins
-PMGApp.installPlugin = installPlugin
 
 # wrappers for tkMessageBox and tkFileDialog that always use the current
 # focused widget as parent
